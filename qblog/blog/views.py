@@ -3,13 +3,19 @@ import logging
 from django.views import generic
 from django.http import HttpRequest, HttpResponse, Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect, reverse
+from django.contrib.auth.decorators import login_required
 
-from .models import Post, CommentModel
-from .forms import SearchPostForm, CommentForm
+from qblog import settings
+from .models import Post, Comment
+from django.contrib.auth import get_user_model
+from .forms import SearchPostForm, CommentForm, AddPostForm
 
 # Create your views here.
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s\t %(asctime)s.%(msecs)03d:%(filename)s:%(lineno)d:%(message)s',
                             datefmt='%H:%M:%S')
+
+
+User = get_user_model()
 
 class PostList(generic.ListView):
     """
@@ -53,18 +59,23 @@ def _increment_views_count_for_session(request: HttpRequest, obj: Post) -> int:
 
 
 def post_detail(request: HttpRequest, slug):
-
-    if request.method == "POST":
-        form = CommentForm(request.POST)
-        if form.is_valid():
-            author = form.cleaned_data["your_name"]
-            content = form.cleaned_data["comment_text"]
-            comment = CommentModel(your_name=author, comment_text=content)
-            comment.save()
-            return redirect(reverse(f"blog:post_detail/"))
+    POST_DETAIL_PATH = f"/{slug}/"
 
     post = get_object_or_404(Post, slug=slug)
-    comments = CommentModel.objects.filter(post=post)
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            logging.debug(f"User must be authenticated to write comments")
+            return redirect(reverse(f'accounts:login'))
+
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            author = request.user
+            text = form.cleaned_data["text"]
+            comment = Comment(author=author, text=text, post=post)
+            comment.save()
+            return redirect(POST_DETAIL_PATH)
+
+    comments = Comment.objects.filter(post=post)
     form = CommentForm()
 
     # Number of visits to this view, as counted in the session variable.
@@ -78,6 +89,54 @@ def post_detail(request: HttpRequest, slug):
     }
 
     return render(request, 'blog/post_detail.html', context=context)
+
+@login_required
+def add_post(request):
+    if request.method == "POST":
+        form = AddPostForm(request.POST)
+        if form.is_valid():
+            title = form.cleaned_data["title"]
+            content = form.cleaned_data["content"]
+            status = form.cleaned_data["status"]
+            slug = Post.get_slug_from_title(title)
+            # form.assert_slug_not_exists(slug)  # TODO connect checking if the slug is already exists
+            author = User.objects.get(id=request.user.id)
+
+            post = Post(
+                        title=title,
+                        slug=slug,
+                        author=author,
+                        content=content,
+                        status=status,
+                        )
+            post.save()
+
+            return redirect("accounts:profile", username=author.username)
+    else:
+        form = AddPostForm()
+    return render(request, f"blog/add_post.html", {'form': form})
+
+@login_required
+def delete_post(request, slug):
+    post = Post.objects.get(slug=slug)
+    if request.user == post.author:
+        logging.debug(f"deleting post {slug=}")
+        Post.objects.get(slug=slug).delete()
+    else:
+        logging.debug(f"user {request.user} can not delete posts of another user ({post.author})")
+    return redirect(f"accounts:profile", username=request.user.username)
+
+
+@login_required
+def publish_post(request, slug):
+    post = Post.objects.get(slug=slug)
+    if request.user == post.author:
+        logging.debug(f"publishing post {slug=}")
+        post.publish()
+        post.save()
+    else:
+        logging.debug(f"user {request.user} can not publish posts of another user ({post.author})")
+    return redirect(f"accounts:profile", username=request.user.username)
 
 
 def search_post_form(request: HttpRequest):
@@ -101,3 +160,4 @@ def search_post_form(request: HttpRequest):
             'form': form,
         }
     return render(request, 'blog/search_post.html', context)
+

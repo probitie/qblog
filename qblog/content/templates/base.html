@@ -14,10 +14,10 @@
     <body>
         <style>
             body {
-            font-family: "Lucida Console", monospace;
-            font-size: 17px;
-            background-color: #fdfdfd;
-        }
+                font-family: "Lucida Console", monospace;
+                font-size: 18px;
+                background-color: #fdfdfd;
+                }
         .shadow {
             box-shadow: 0 4px 2px -2px rgba(0, 0, 0, 0.1);
         }
@@ -33,18 +33,39 @@
             box-shadow: 0 16px 48px #E3E7EB;
             padding-top: 10px;
         }
-        .comment {
+        .center {
+          display: block;
+          margin-left: auto;
+          margin-right: auto;
+          text-align: center;
+          width: 20%;
+          padding-top: 5%;
+          padding-bottom: 3%;
+        }
+        .green-bg {
+            background: rgba(0, 127, 95, 0.3);
+        }
+        .gray-bg {
+            background: rgba(183,187,189, 1);
+        }
+        .soft_block {
             margin-bottom: 10px;
-            padding: 5px;
+            padding: 10px;
             border-radius: 10px;
-            background: rgba(0, 127, 95, 0.3)
+        }
+        .registration-field td{
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+        .signup {
+            padding-top: 5%;
         }
     </style>
 
         <!-- Navigation -->
         <nav class="navbar navbar-expand-lg navbar-light bg-light shadow" id="mainNav">
             <div class="container-fluid">
-                <a class="navbar-brand" href="{% url 'blog:home' %}"></a>
+                <a class="navbar-brand" href="{% url 'blog:main' %}"></a>
                 <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive"
                     aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -52,20 +73,17 @@
                 <div class="collapse navbar-collapse" id="navbarResponsive">
                     <ul class="navbar-nav ml-auto">
                         <li class="nav-item text-black">
+                            <a class="nav-link text-black font-weight-bold" href="{% url 'blog:main' %}">home</a>
+                        </li>
+                        <li class="nav-item text-black">
                             <a class="nav-link text-black font-weight-bold" href="{% url 'blog:search'%}">search</a>
-                        </li>
-                        <li class="nav-item text-black">
-                            <a class="nav-link text-black font-weight-bold" href="#">about</a>
-                        </li>
-                        <li class="nav-item text-black">
-                            <a class="nav-link text-black font-weight-bold" href="#">contact</a>
                         </li>
                         <li class="nav-item text-black">
                             <a class="nav-link text-black font-weight-bold" href='/admin/'>admin</a>
                         </li>
-                        {% if user.is_authenticated %}
+                        {% if request.user.is_authenticated %}
                         <li class="nav-item text-black">
-                            <a class="nav-link text-black font-weight-bold" href="{% url 'accounts:logout'%}">    Welcome, {{ user.get_username }}</a>
+                            <a class="nav-link text-black font-weight-bold" href="{% url 'accounts:profile' username=user.get_username %}">profile</a>
                         </li>
                         {% else %}
                         <li class="nav-item text-black">

@@ -11,7 +11,7 @@ STATUS = (
 )
 
 class Post(models.Model):
-    title = models.CharField(max_length=300, unique=True)
+    title = models.CharField(max_length=300)
     slug = models.SlugField(max_length=300, unique=True)  # path to post in url
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blog_posts")
     content = models.TextField()
@@ -26,11 +26,28 @@ class Post(models.Model):
     def __str__(self):
         return self.title
 
+    def is_draft(self) -> bool:
+        """Checks if post is draft"""
+        return self.status == STATUS_DRAFT
 
-class CommentModel(models.Model):
-    your_name = models.CharField(max_length=20)
-    comment_text = models.TextField(max_length=500)
+    def publish(self) -> None:
+        """make post status PUBLISHED"""
+        self.status = STATUS_PUBLISHED
+
+    @staticmethod
+    def get_slug_from_title(title: str) -> str:
+        """makes slug from title"""
+        return title.lower().replace(" ", "_").replace(',', '')
+
+
+class Comment(models.Model):
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     post = models.ForeignKey('Post', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    text = models.TextField(max_length=500)
+
+    class Meta:
+        ordering = ['created_at']
 
     def __str__(self):
-        return f"Comment by Name: {self.your_name}"
+        return f"by: {self.author}"

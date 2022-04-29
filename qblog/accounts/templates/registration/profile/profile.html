@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head_title %}{{ user.username }} | Django Blog{% endblock head_title %}
+
+{% block content %}
+<style>
+
+  .profile-private__post {
+
+  }
+  .icon-container{
+    max-width: 250px;
+    width : 100%;
+    max-height: 250px;
+  }
+  .text-container{
+  }
+
+  .icon {
+  object-fit: cover;
+  width:100%;
+  height:100%;
+}
+
+.adaptive-icon{
+  object-fit: cover;
+  width:100%;
+  height:100%;
+}
+
+.flex {
+  display: flex;
+  align-items: flex-start;
+}
+
+.text-soft-red {
+  color: rgba(169,59,69, 0.8);
+  font-size: 22px;
+}
+
+</style>
+<div class="container-fluid mt-5">
+  <div class="row">
+    <div class="card col-lg-6 offset-lg-3 mb-3">
+      <div class="row flex">
+        <div class="card-img-top col-sm-3 col-4 my-3 icon-container">
+          {% if user.profile.image %}
+          <img class="icon" src="{{ profile.image.url }}" alt="{{ user.username }}">
+          {% else %}
+          <img class="icon" src="{% static 'img/avatar.svg' %}" alt="{{ user.username }}">
+          {% endif %}
+        </div>
+        <div class="card-body col-9 text-container">
+            <h2 class="card-title my-3">{{ user.username }}</h2>
+            <p>Last login on: {{ user.last_login }}</p>
+            <p class="card-text">{{ user.profile.about_user }}</p>
+          {% if is_current_user %}
+            <p><a href="{% url 'accounts:edit_profile' %}">Edit your profile</a></p>
+            <p><a href="{% url 'blog:add_post' %}">Add a post</a></p>
+            <p><a href="{% url 'accounts:logout' %}">Log out</a></p>
+          {% endif %}
+          </div>
+      </div>
+        <div class="row">
+        <div class="card-body">
+          {% for post in user_post_list %}
+          {% if post.is_draft %}
+          <div class="profile-private__post gray-bg soft_block">
+          {% else %}
+          <div class="profile-private__post green-bg soft_block">
+          {% endif %}
+            <h2 class="card-title">{{ post.title }}</h2>
+            {% if post.is_draft %}
+              <p class="text-soft-red">draft </p>
+            {% endif %}
+            <p class="card-text text-muted h6">{{ post.author }} | {{ post.created_at}} </p>
+            <p class="card-text">{{post.content|slice:":200" }}...</p>
+            <a href="{% url 'blog:post_detail' post.slug  %}" class="btn btn-primary">Read More &rarr;</a>
+            {% if is_current_user %}
+              <a href="{% url 'blog:delete_post' post.slug  %}" class="btn btn-danger">Delete post</a>
+              {% if post.is_draft %}
+                <a href="{% url 'blog:publish_post' post.slug  %}" class="btn btn-primary">PUBLISH &rarr;</a>
+              {% endif %}
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
