@@ -92,16 +92,23 @@ def post_detail(request: HttpRequest, slug):
 
 @login_required
 def add_post(request):
+    logging.debug(f"1")
     if request.method == "POST":
+        logging.debug(f"2")
         form = AddPostForm(request.POST)
+        logging.debug(f"3")
         if form.is_valid():
+            logging.debug(f"4")
             title = form.cleaned_data["title"]
             content = form.cleaned_data["content"]
             status = form.cleaned_data["status"]
+            logging.debug(f"5")
             slug = Post.get_slug_from_title(title)
+            logging.debug(f"6")
             # form.assert_slug_not_exists(slug)  # TODO connect checking if the slug is already exists
             author = User.objects.get(id=request.user.id)
-
+            logging.debug(f"7")
+            logging.debug(f"slug is {slug}")
             post = Post(
                         title=title,
                         slug=slug,
@@ -109,11 +116,14 @@ def add_post(request):
                         content=content,
                         status=status,
                         )
+            logging.debug(f"8")
             post.save()
-
+            logging.debug(f"9")
             return redirect("accounts:profile", username=author.username)
     else:
+        logging.debug(f"10")
         form = AddPostForm()
+    logging.debug(f"11")
     return render(request, f"blog/add_post.html", {'form': form})
 
 @login_required
@@ -144,20 +154,20 @@ def search_post_form(request: HttpRequest):
 
     if request.method == 'POST':
         form = SearchPostForm(request.POST)
-        logging.debug("method is post, processing data")
         if form.is_valid():
             post_title = form.cleaned_data['post_title']
-            try:
-                post = Post.objects.get(title=post_title)
-            except post_title.DoesNotExist():
-                raise Http404('This post does not exist')
+            post_list = Post.objects.filter(title__contains=post_title)
+            context = {
+                "form": form,
+                "post_list": post_list
+            }
 
-            return HttpResponseRedirect(f'/{post.slug}')
+            return render(request, f'blog/search_post.html', context=context)
     else:
-        logging.debug("method is get, showing empty form")
         form = SearchPostForm()
         context = {
             'form': form,
+            "post_list": []
         }
     return render(request, 'blog/search_post.html', context)
 

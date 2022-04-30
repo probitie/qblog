@@ -37,7 +37,7 @@ class Post(models.Model):
     @staticmethod
     def get_slug_from_title(title: str) -> str:
         """makes slug from title"""
-        return title.lower().replace(" ", "_").replace(',', '')
+        return title.lower().replace(" ", "_").replace(',', '').replace('.', '').replace('%', '').replace('#', '').replace('@,', '').replace('&', '').replace('*', '').replace('(', '').replace(')', '').replace('$', '')
 
 
 class Comment(models.Model):
