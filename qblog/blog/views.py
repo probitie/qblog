@@ -1,71 +1,56 @@
 import logging
 
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, Http404
+from django.shortcuts import get_object_or_404, render, redirect
+from django.urls import reverse_lazy
 from django.views import generic
-from django.http import HttpRequest, HttpResponse, Http404, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, render, redirect, reverse
 from django.contrib.auth.decorators import login_required
-
-from qblog import settings
-from .models import Post, Comment
 from django.contrib.auth import get_user_model
+
+from .models import Post, Comment, STATUS_PUBLISHED
 from .forms import SearchPostForm, CommentForm, AddPostForm
 
-# Create your views here.
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s\t %(asctime)s.%(msecs)03d:%(filename)s:%(lineno)d:%(message)s',
                             datefmt='%H:%M:%S')
 
+User = get_user_model()  # because I use custom model
 
-User = get_user_model()
 
 class PostList(generic.ListView):
-    """
-    Return all posts that are with status 1 (published) and order from the latest one.
-    """
-    queryset = Post.objects.filter(status=1).order_by('-created_at')
+    """Return all posts that are with status 1 (published) and order from the latest one."""
+    queryset = Post.objects.filter(status=STATUS_PUBLISHED).order_by('-created_at')
     template_name = 'blog/index.html'
 
 
-def _increment_views_count(obj: Post):
-    """increments views_count field (need to use for each session once)"""
-    logging.debug("increment view count")
-    obj.views_count += 1
-    obj.save()
+def _get_views_count(post: Post) -> int:
+    """returns the number of views of the specified post"""
+    return len(post.viewed_by.all())
 
 
-def _increment_views_count_for_session(request: HttpRequest, obj: Post) -> int:
+def _register_user_view(request: HttpRequest, post: Post) -> None:
+    """add user from request to Post.viewed_by field"""
+
+    # if the user is authenticated not already viewed the post
+    if request.user.is_authenticated:
+        user = User.objects.get(id=request.user.id)
+
+        if not post.viewed_by.filter(pk=user.id).exists():
+            post.viewed_by.add(user)
+            post.save()
+
+
+def _handle_comments(request: HttpRequest, post: Post, post_slug: str) -> HttpResponseRedirect:
     """
-    anonymous user views counter
+    handle comments on page
 
-    checks "views" field in session and when obj.slug not presents in session
-     increments count if not viewed for this session
-     and add obj.slug to session
-    obj: where we want to increment count
-    returns: views count
+    :raises Http404 if request method is not POST
     """
-    if not request.session.get("viewed_pages", False):
-        logging.debug("first view of the post for this session")
 
-        try:
-            request.session["viewed_pages"]
-        except KeyError:
-            request.session["viewed_pages"] = []
-
-        request.session["viewed_pages"] += obj.slug
-        _increment_views_count(obj)
-    else:
-        logging.debug("post already viewed")
-
-    return obj.views_count
-
-
-def post_detail(request: HttpRequest, slug):
-    POST_DETAIL_PATH = f"/{slug}/"
-
-    post = get_object_or_404(Post, slug=slug)
+    # todo add to comment form button that will mark it as comment form and then handle it here
     if request.method == "POST":
         if not request.user.is_authenticated:
-            logging.debug(f"User must be authenticated to write comments")
-            return redirect(reverse(f'accounts:login'))
+            logging.debug(f"CustomUser must be authenticated to write comments")
+            return redirect(f'accounts:login')
 
         form = CommentForm(request.POST)
         if form.is_valid():
@@ -73,13 +58,30 @@ def post_detail(request: HttpRequest, slug):
             text = form.cleaned_data["text"]
             comment = Comment(author=author, text=text, post=post)
             comment.save()
-            return redirect(POST_DETAIL_PATH)
+            return redirect(reverse_lazy("blog:post_detail"), slug=post_slug)
+    raise Http404("no comments have been posted, nothing to handle")
+
+
+def post_detail(request: HttpRequest, slug) -> HttpResponse:
+    """
+    detail view of the post
+
+    I use function instead of a class, but it could be rewritten to a class at any time
+    """
+
+    post = get_object_or_404(Post, slug=slug)
+
+    # easier to ask for forgiveness than permission ))
+    try:
+        return _handle_comments(request, post, slug)
+    except Http404:
+        pass  # nothing to handle
 
     comments = Comment.objects.filter(post=post)
     form = CommentForm()
 
-    # Number of visits to this view, as counted in the session variable.
-    views_count = _increment_views_count_for_session(request, post)
+    _register_user_view(request, post)
+    views_count = _get_views_count(post)
 
     context = {
         "object": post,
@@ -90,47 +92,46 @@ def post_detail(request: HttpRequest, slug):
 
     return render(request, 'blog/post_detail.html', context=context)
 
+
 @login_required
-def add_post(request):
-    logging.debug(f"1")
+def add_post(request: HttpRequest) -> HttpResponse:
+    """view for adding post"""
     if request.method == "POST":
-        logging.debug(f"2")
-        form = AddPostForm(request.POST)
-        logging.debug(f"3")
+        form = AddPostForm(request.POST, request.FILES)
+
         if form.is_valid():
-            logging.debug(f"4")
             title = form.cleaned_data["title"]
             content = form.cleaned_data["content"]
             status = form.cleaned_data["status"]
-            logging.debug(f"5")
+            image = form.cleaned_data["image"]
             slug = Post.get_slug_from_title(title)
-            logging.debug(f"6")
-            # form.assert_slug_not_exists(slug)  # TODO connect checking if the slug is already exists
             author = User.objects.get(id=request.user.id)
-            logging.debug(f"7")
-            logging.debug(f"slug is {slug}")
+
             post = Post(
                         title=title,
                         slug=slug,
                         author=author,
+                        image=image,
                         content=content,
                         status=status,
                         )
-            logging.debug(f"8")
             post.save()
-            logging.debug(f"9")
+            # redirect to a profile because it is using only there
             return redirect("accounts:profile", username=author.username)
     else:
-        logging.debug(f"10")
         form = AddPostForm()
-    logging.debug(f"11")
     return render(request, f"blog/add_post.html", {'form': form})
 
+
 @login_required
-def delete_post(request, slug):
+def delete_post(request, slug) -> HttpResponseRedirect:
+    """
+    view for deleting post
+
+    only an owner is able to delete the post
+    """
     post = Post.objects.get(slug=slug)
     if request.user == post.author:
-        logging.debug(f"deleting post {slug=}")
         Post.objects.get(slug=slug).delete()
     else:
         logging.debug(f"user {request.user} can not delete posts of another user ({post.author})")
@@ -139,18 +140,23 @@ def delete_post(request, slug):
 
 @login_required
 def publish_post(request, slug):
+    """
+    view for publishing post (make it visible to other users and from main page)
+
+    only an owner is able to publish the post
+    """
     post = Post.objects.get(slug=slug)
     if request.user == post.author:
-        logging.debug(f"publishing post {slug=}")
         post.publish()
         post.save()
     else:
         logging.debug(f"user {request.user} can not publish posts of another user ({post.author})")
+
     return redirect(f"accounts:profile", username=request.user.username)
 
 
-def search_post_form(request: HttpRequest):
-    """"""
+def search_post(request: HttpRequest):
+    """a view for finding posts by symbols their titles contain"""
 
     if request.method == 'POST':
         form = SearchPostForm(request.POST)
@@ -170,4 +176,3 @@ def search_post_form(request: HttpRequest):
             "post_list": []
         }
     return render(request, 'blog/search_post.html', context)
-

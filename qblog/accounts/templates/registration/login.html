@@ -14,7 +14,7 @@
       {% endif %}
     {% endif %}
 
-    <form method="post" action="{% url 'accounts:login' %}">
+    <form  method="POST" action="{{ login }}">
       {% csrf_token %}
       <table class="registration-field">
         <tr>
@@ -27,9 +27,9 @@
         </tr>
       </table>
       <input type="submit" value="login" />
-      <input type="hidden" name="next" value="{{ next }}" />
     </form>
 
     {# Assumes you setup the password_reset view in your URLconf #}
     <p class="signup"><a href="{% url 'accounts:signup' %}">Sign up</a></p>
+    <p class="signup"><a href="{% url 'accounts:password_reset' %}">Forgot password?</a></p>
   {% endblock registration-content %}

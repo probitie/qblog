@@ -1,34 +1,20 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+from qblog.settings import USERDATA_URL
+
+from qblog import model_file_cleaner
+model_file_cleaner.setup()
 
 
 class UserManager(BaseUserManager):
-    pass
-
-
-class User(AbstractUser):
-    pass
-
-# it will be created with new user instance - discrete model because user may customise it
-class Profile(models.Model):
-
-    about_user = models.TextField()
-    image = models.ImageField(upload_to='profile_image', null=True, blank=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.user.username
-
-
-# for custom user model (I`ve got some errors so left it for the next time)
-'''class CustomUserManager(BaseUserManager):
-    def create_user(self, username, email, password, is_active=True, is_staff=False, is_admin=False):
+    def create_user(self, username, email, password=None, is_active=True, is_staff=False, is_admin=False):
         if not username:
             raise ValueError("User must have username")
-        if not email:
-            raise ValueError("User must have an email")
         if not password:
             raise ValueError("User must have a password")
+        if not email:
+            raise ValueError("User must have a email")
+
         user = self.model(username=username, email=email)
         user.set_password(password)
         user.admin = is_admin
@@ -52,49 +38,33 @@ class Profile(models.Model):
         if not password:
             raise ValueError("User must have a password")
 
-        user = self.model(username=username, email=email)
+        user = self.model(username=username)
         user.set_password(password)
-        user.admin = is_admin
-        user.active = is_active
-        user.staff = is_staff
+        user.is_superuser = is_admin
+        user.email = email
+        user.is_active = is_active
+        user.is_staff = is_staff
         user.save(using=self._db)
         return user
 
 
 class CustomUser(AbstractUser):
-
-    username = models.CharField(max_length=255, unique=True, null=False, blank=False, verbose_name='Username')
-    email = models.EmailField('email address', unique=True)
-    admin = models.BooleanField(default=False)
-    active = models.BooleanField(default=True)
-    staff = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True, editable=False)
-
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = []
-
     objects = UserManager()
+    # add additional fields in here
 
     def __str__(self):
-        return f"{self.username}"
+        return self.username
 
-    @property
-    def is_staff(self):
-        return self.staff
+def upload_icon_to(instance, filename):
+    """generates path for storing user`s icon"""
+    return f'{USERDATA_URL}{instance.user.id}/icons/{filename}'
 
-    @property
-    def is_active(self):
-        return self.active
+# it will be created with new user instance - discrete model because user may customise it
+class Profile(models.Model):
 
-    @property
-    def is_admin(self):
-        return self.admin
+    about_user = models.TextField()
+    image = models.ImageField(upload_to=upload_icon_to, null=True, blank=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
 
-    @property
-    def is_superuser(self):
-        return self.admin
-
-    class Meta:
-        pass'''
-
-# Create your models here.
+    def __str__(self):
+        return self.user.username

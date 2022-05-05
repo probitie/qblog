@@ -1,14 +1,18 @@
-from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Profile
+from django.contrib import admin
+from .forms import CustomUserCreationForm, CustomUserChangeForm
+from .models import CustomUser, Profile
 
 class ProfileInLine(admin.TabularInline):
     model = Profile
 
 
-class ProfileUserAdmin(UserAdmin):
+class CustomUserAdmin(UserAdmin):
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
+    model = CustomUser
+    list_display = ["email", "username",]
     inlines = [ProfileInLine]
 
 
-admin.site.register(User, ProfileUserAdmin)
-# Register your models here.
+admin.site.register(CustomUser, CustomUserAdmin)

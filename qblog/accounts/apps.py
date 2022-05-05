@@ -5,10 +5,9 @@ class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'accounts'
 
-# add this function
+# creates user profile object automatically when user object is saving to db
     def ready(self):
         from . import signals
 
 
-# users/__init__.py
 default_app_config = 'users.apps.UsersConfig'

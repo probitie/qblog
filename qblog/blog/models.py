@@ -1,22 +1,30 @@
+from datetime import datetime
 from django.db import models
-from django.contrib.auth.models import User
 from qblog import settings
 
-# Create your models here.
+
 STATUS_DRAFT = 0
 STATUS_PUBLISHED = 1
+
+# post status: Draft - visible only for author or Publish - visible for everyone
 STATUS = (
-    (0, "Draft"),
-    (1, "Publish")
+    (STATUS_DRAFT, "Draft"),
+    (STATUS_PUBLISHED, "Publish")
 )
+
+def upload_img_to(instance, filename):
+    """generates path for storing post images"""
+    # date string is used for making each file unique
+    return f'userdata/{instance.author.id}/img/{datetime.now().strftime("%y%m%d%H%M%S%f")}__{filename}'
 
 class Post(models.Model):
     title = models.CharField(max_length=300)
-    slug = models.SlugField(max_length=300, unique=True)  # path to post in url
+    slug = models.SlugField(max_length=300, unique=True)
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="blog_posts")
+    image = models.ImageField(upload_to=upload_img_to, null=True, blank=True)
     content = models.TextField()
     status = models.IntegerField(choices=STATUS, default=0)
-    views_count = models.IntegerField(default=0, editable=False)
+    viewed_by = models.ManyToManyField(settings.AUTH_USER_MODEL)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

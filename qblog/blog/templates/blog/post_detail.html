@@ -1,5 +1,11 @@
 {% extends 'base.html' %} {% block content %}
 
+<style>
+  .post-image {
+    padding: 15px;
+  }
+</style>
+
 <div class="container">
   <div class="row">
     <div class="col-md-8 card mb-4  mt-3 left  top">
@@ -9,6 +15,11 @@
         <a class="card-text text-muted h6" href=" {% url 'accounts:profile' object.author  %} ">{{ object.author }} | {{ object.created_at}} </a>
         <br>
         <br>
+        {% if object.image %}
+        <div class="post-image card-img-top">
+          <img class="post-image_img" src="{{ object.image.url }}" alt="broken image">
+        </div>
+        {% endif %}
         <p class="card-text ">{{ object.content | safe }}</p>
         <div class="card-body">
       </div>
