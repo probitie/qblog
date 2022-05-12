@@ -7,8 +7,9 @@ app_name = 'accounts'
 urlpatterns = [
     path("signup/", views.SignUpView.as_view(), name="signup"),
     path('profile/<username>', views.profile, name="profile"),
-    path('edit-profile/', views.edit_profile, name='edit_profile'),
+    path('edit-profile/<username>', views.edit_profile, name='edit_profile'),
     path('login/', views.login_view, name='login'),
+    path('logout/', auth_views.LogoutView.as_view(template_name='registration/logged_out.html'), name='logout'),
     path('logout/', auth_views.LogoutView.as_view(template_name='registration/logged_out.html'), name='logout'),
     path('password_reset/', views.password_reset_request, name='password_reset'),
 

@@ -6,7 +6,7 @@ from django.views.generic.edit import CreateView
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.core.mail import send_mail, BadHeaderError
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth import get_user_model
 from django.template.loader import render_to_string
@@ -37,10 +37,10 @@ def login_view(request):
                 login(request, user)
                 return redirect('blog:main')
             else:
-                logging.warning(request, "Your account is disabled!")
+                logging.warning("Your account is disabled!")
                 return redirect('accounts:login')
         else:
-            logging.warning(request, "The username or password are not valid!")
+            logging.warning("The username or password are not valid!")
             return redirect('accounts:login')
     else:
         context = {'form': form}
@@ -53,6 +53,10 @@ class SignUpView(CreateView):
     success_url = reverse_lazy("accounts:login")
     template_name = "registration/signup.html"
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['email'].required = True
+        return form
 
 def profile(request, username):
     """
@@ -77,8 +81,12 @@ def profile(request, username):
 
 
 @login_required
-def edit_profile(request):
+def edit_profile(request, username):
     """A view for editing user`s profile"""
+
+    if username != request.user.username:
+        raise Http404
+
     if request.method == "POST":
         form = forms.EditProfileForm(request.user.username, request.POST, request.FILES)
         if form.is_valid():
@@ -96,6 +104,7 @@ def edit_profile(request):
                 profile_obj.image = image
             profile_obj.save()
             return redirect("accounts:profile", username=user.username)
+
     else:
         form = forms.EditProfileForm(request.user.username)
     return render(request, f"registration/profile/edit_profile.html", {'form': form})

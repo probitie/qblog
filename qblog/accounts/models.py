@@ -17,9 +17,9 @@ class UserManager(BaseUserManager):
 
         user = self.model(username=username, email=email)
         user.set_password(password)
-        user.admin = is_admin
-        user.active = is_active
-        user.staff = is_staff
+        user.is_admin = is_admin
+        user.is_active = is_active
+        user.is_staff = is_staff
         user.save(using=self._db)
         return user
 
